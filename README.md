@@ -1,4 +1,4 @@
 Just a simple blog backend built with Node, Express, MongoDB
 -
 
-for learning purposes
+for learning purposes from fullstackopen
