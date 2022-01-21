@@ -101,13 +101,50 @@ describe("Testing GET for blogs (we can assume POST works)", () => {
     })
 })
 
-//describe("Testing DELETE method", () => {
-//    beforeEach(async() => {
-//        await User.deleteMany({})
-//
-//
-//    })
-//})
+describe("Testing DELETE method", () => {
+    beforeEach(async() => {
+        await User.deleteMany({})
+        await Blog.deleteMany({})
+        const user1 = initialUserDB[0]
+        const user2 = initialUserDB[1]
+
+        await api.post("/api/users").send(user1) // create test users
+        await api.post("/api/users").send(user2)
+
+        const token1 = (await api.post("/api/login").send(user1)).body.token
+        const token2 = (await api.post("/api/login").send(user2)).body.token
+        let n = initialBlogDB.length
+
+        for(let i = 0; i < n / 2; ++i) {
+            await api.post("/api/blogs").set("authorization", `Bearer ${token1}`).send(initialBlogDB[i]) 
+        }
+
+        for(let i = n / 2; i < n; ++i) {
+            await api.post("/api/blogs").set("authorization", `Bearer ${token2}`).send(initialBlogDB[i]) 
+        }
+    })
+    test("that delete actually works", async() => {
+        const blogs = (await api.get("/api/blogs")).body
+        const initialLen = blogs.length
+        const userToken = (await api.post("/api/login").send(initialUserDB[0])).body.token
+        const res = await api.delete(`/api/blogs/${blogs[0]['id']}`).set("authorization", `Bearer ${userToken}`).expect(201).expect("Content-Type", /application\/json/)
+
+        expect(res.body.id).toBe(blogs[0].id)
+
+        const newBlogs = (await api.get("/api/blogs")).body
+        expect(newBlogs).toHaveLength(initialLen - 1)
+    })
+
+    test("that delete only works based on that user's id", async() => {
+        const badUserToken = (await api.post("/api/login").send(initialUserDB[1])).body.token
+        const initialLen = (await api.get("/api/blogs")).body.length
+
+        const blogToRemove = (await api.get("/api/blogs")).body[0]
+        await api.delete(`/api/blogs/${blogToRemove.id}`).set("authorization", `Bearer ${badUserToken}`).expect(400).expect("Content-Type", /application\/json/)
+        const newBody = (await api.get("/api/blogs")).body
+        expect(newBody).toHaveLength(initialLen)
+    })
+})
 
 
 afterAll(() => {

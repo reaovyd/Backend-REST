@@ -24,7 +24,20 @@ blogRouter.get("/:id", async(req, res) => {
 })
 
 blogRouter.delete("/:id", loginMiddleware.tokenExtractor, loginMiddleware.userExtractor, async(req, res) => {
+    const blog = await Blog.findById(req.params.id)
+    const user = req.user
 
+    if(blog.user.toString() !== user.id.toString()) {
+        return res.status(400).json({
+            error: "blog does not belong to current user"
+        })
+    }
+
+    const ret = await Blog.findByIdAndDelete(req.params.id)
+    user.blogs = user.blogs.filter(elem => elem !== req.params.id) 
+    await User.findByIdAndUpdate(user.id, user, {new: true})
+
+    res.status(201).json(ret)
 })
 
 module.exports = blogRouter
